@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import matplotlib.pyplot as plt
 
 class Bezier:
     """
@@ -15,6 +16,10 @@ class Bezier:
     points = None
     curve_pts_num = None
     curve_pts = None
+    C = None
+    P = None
+    A = None
+    B = None
 
     def __init__(self, n, points, curve_pts_num):
         """
@@ -40,9 +45,6 @@ class Bezier:
     def createCoefficientMatrix(self):
         """
             Creates the coefficient matrix for the Bezier curve interpolation
-
-                Returns:
-                    numpy.ndarray: The coefficient matrix
         """
         C = np.zeros((self.n, self.n))
 
@@ -52,14 +54,12 @@ class Bezier:
             row[i], row[r] = 1, 2
             C[i] = row
 
-        return C
+        self.C = C
+        #return C
 
     def createEndPointVector(self):
         """
         Creates the column vector which contains the end points of each curve connecting two points
-
-            Returns:
-                numpy.ndarray: The column vector
         """
         P = np.zeros((self.n, 2))
 
@@ -70,8 +70,24 @@ class Bezier:
             val = 2 * self.points[l] + self.points[r]
             P[i] = val
         
-        return P
+        self.P = P
+        #return P
 
+    def findControlPoints(self):
+        """
+        Find the control points for the Bezier curve
+        """
+        A = np.linalg.solve(self.C, self.P)
+
+        B = np.zeros_like(A)
+
+        for i in range(self.n):
+            l = i + 1 if i + 1 < self.n else (i + 1) % self.n
+            B[i] = 2 * self.points[l] - A[l]
+        
+        self.A = A
+        self.B = B
+        #print(B)
 
     def findPoints(self):
         """
@@ -79,15 +95,41 @@ class Bezier:
         """
         self.createCoefficientMatrix()
         self.createEndPointVector()
-    
+
+        self.findControlPoints()
+        
+        all_pts = []
+
+        for i in range(self.n):
+            next_i = i + 1 if i + 1 < self.n else (i + 1) % self.n
+            dpts = np.linspace(0, 1, self.curve_pts_num)
+            for j in dpts:
+                pt = np.power(1 - j, 3) * self.points[i] + 3 * j * np.power(1 - j, 2) * self.A[i] + 3 * (1 - j) * np.power(j, 2) * self.B[i] + np.power(j, 3) * self.points[next_i]
+                all_pts.append(pt.tolist())
+
+        self.curve_pts = np.array(all_pts)
+
+
+    def draw(self):
+        """
+        Draws a plot of the curve and the points
+        """
+        x, y = self.curve_pts[:,0], self.curve_pts[:,1]
+        px, py = self.points[:,0], self.points[:,1]
+
+        plt.plot(x, y, "b-")
+        plt.plot(px, py, "ko")
+        plt.show()
+
 if __name__ == "__main__":
     # Test some methods
 
     points = np.array([
-        [150, 200],
-        [200, 150], 
-        [150, 100],
-        [100, 150]
+        [400, 460],
+        [580, 400], 
+        [400, 340],
+        [385, 400]
     ])
     b = Bezier(4, points, 30)
     b.findPoints()
+    b.draw()
